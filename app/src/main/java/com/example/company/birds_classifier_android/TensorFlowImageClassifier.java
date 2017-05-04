@@ -82,9 +82,8 @@ public class TensorFlowImageClassifier implements Classifier {
             throw new RuntimeException("TF initialization failed");
         }
         // The shape of the output is [N, NUM_CLASSES], where N is the batch size.
-        int numClasses =
-                (int) c.inferenceInterface.graph().operation(outputName).output(0).shape().size(1);
-        Log.i(TAG, "Read " + c.labels.size() + " labels, output layer size is " + numClasses);
+        int classes = (int) c.inferenceInterface.graph().operation(outputName).output(0).shape().size(1);
+        Log.i(TAG, "Read " + c.labels.size() + " labels, output layer size is " + classes);
 
         // Ideally, inputSize could have been retrieved from the shape of the input operation.  Alas,
         // the placeholder node for input in the graphdef typically used does not specify a shape, so it
@@ -93,7 +92,7 @@ public class TensorFlowImageClassifier implements Classifier {
 
         // Pre-allocate buffers.
         c.outputNames = new String[]{outputName};
-        c.outputs = new float[numClasses];
+        c.outputs = new float[classes];
 
         return c;
     }
@@ -105,8 +104,7 @@ public class TensorFlowImageClassifier implements Classifier {
 
         // Copy the input data into TensorFlow.
         Trace.beginSection("fillNodeFloat");
-        inferenceInterface.fillNodeFloat(
-                inputName, new int[]{inputSize * inputSize}, pixels);
+        inferenceInterface.fillNodeFloat(inputName, new int[]{inputSize * inputSize}, pixels);
         Trace.endSection();
 
         // Run the inference call.
