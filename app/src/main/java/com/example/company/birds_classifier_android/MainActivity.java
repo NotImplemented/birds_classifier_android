@@ -25,6 +25,10 @@ import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import java.io.IOException;
+import java.util.List;
+
+import static com.example.company.birds_classifier_android.SoundBuffer.SPECTROGRAM_LENGTH;
+import static com.example.company.birds_classifier_android.SoundBuffer.WINDOW_SIZE;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -69,7 +73,9 @@ public class MainActivity extends AppCompatActivity {
         recordButton.setChecked(recordingActive);
     }
 
-    private static final int INPUT_SIZE = 28;
+    private static final int INPUT_HEIGHT = WINDOW_SIZE / 2;
+    private static final int INPUT_WIDTH = SPECTROGRAM_LENGTH;
+
     private static final String INPUT_NAME = "input";
     private static final String OUTPUT_NAME = "output";
 
@@ -78,18 +84,15 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    private void classifyTest() {
+    private Classifier classifier;
 
-        textView.append("\nStart image recognition.");
-        try {
+    public void appendText(final String text) {
 
-            Classifier classifier = TensorFlowImageClassifier.create(getAssets(), MODEL_FILE, LABEL_FILE, INPUT_SIZE, INPUT_NAME, OUTPUT_NAME);
-            Log.d(TAG, "Load Success");
+        handler.post(new Runnable() { public void run() {
+
+            textView.append(text);
         }
-        catch (final Exception e) {
-
-            throw new RuntimeException("Error initializing TensorFlow!", e);
-        }
+        });
     }
 
     private void startRecording() {
@@ -117,6 +120,26 @@ public class MainActivity extends AppCompatActivity {
             textView.append("\nPermissions RECORD_AUDIO has been already granted.");
         }
 
+        if (classifier == null) {
+
+            try {
+                classifier = TensorFlowImageClassifier.create(this, getAssets(), MODEL_FILE, LABEL_FILE, INPUT_HEIGHT, INPUT_WIDTH, INPUT_NAME, OUTPUT_NAME);
+            }
+            catch (final Exception e) {
+
+                handler.post(new Runnable() { public void run() {
+
+                    textView.append(String.format("\nCannot create tensorflow instance.\nError message: %s", e.getMessage()));
+
+                    recordingActive = false;
+                    recordButton.setChecked(recordingActive);
+                }
+                });
+
+                return;
+            }
+        }
+
         new Thread(new Runnable() {
 
             @Override
@@ -136,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
                         handler.post(new Runnable() { public void run() { textView.append("\nCannot initialize audio record."); } });
                     }
 
-                    soundBuffer = new SoundBuffer(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+                    soundBuffer = new SoundBuffer(classifier, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
                     record.startRecording();
 
                     handler.post(new Runnable() { public void run() { textView.append("\nRecording was started."); } });

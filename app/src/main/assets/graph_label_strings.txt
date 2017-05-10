@@ -1,10 +1,19 @@
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
+Brown Creeper
+Pacific Wren
+Pacific-slope Flycatcher
+Red-breasted Nuthatch
+Dark-eyed Junco
+Olive-sided Flycatcher
+Hermit Thrush
+Chestnut-backed Chickadee
+Varied Thrush
+Hermit Warbler
+Swainson's Thrush
+Hammond's Flycatcher
+Western Tanager
+Black-headed Grosbeak
+Golden Crowned Kinglet
+Warbling Vireo
+MacGillivray's Warbler
+Stellar's Jay
+Common Nighthawk
