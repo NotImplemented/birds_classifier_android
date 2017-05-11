@@ -168,5 +168,3 @@ public class TensorFlowImageClassifier implements Classifier {
         activity.appendText(message);
     }
 }
-
-

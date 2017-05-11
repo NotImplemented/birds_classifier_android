@@ -35,7 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "birds_classification";
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
     private static final int AUDIO_ECHO_REQUEST = 0;
-    private static final int SAMPLE_RATE = 22050;
+    private static final int SAMPLE_RATE = 16000;
 
     private boolean recordingActive = false;
 
