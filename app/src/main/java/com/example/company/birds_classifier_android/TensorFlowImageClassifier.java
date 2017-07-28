@@ -63,7 +63,6 @@ public class TensorFlowImageClassifier implements Classifier {
         c.outputName = outputName;
 
         // Read the label names into memory.
-        // TODO(andrewharp): make this handle non-assets.
         String actualFilename = labelFilename.split("file:///android_asset/")[1];
         log("Reading labels from: " + actualFilename);
         BufferedReader br = null;
@@ -76,7 +75,7 @@ public class TensorFlowImageClassifier implements Classifier {
 
         c.inferenceInterface = new TensorFlowInferenceInterface();
         if (c.inferenceInterface.initializeTensorFlow(assetManager, modelFilename) != 0) {
-            throw new RuntimeException("TF initialization failed");
+            throw new RuntimeException("TensorFlow initialization failed");
         }
         // The shape of the output is [N, NUM_CLASSES], where N is the batch size.
         int classes = (int) c.inferenceInterface.graph().operation(outputName).output(0).shape().size(1);
@@ -119,7 +118,7 @@ public class TensorFlowImageClassifier implements Classifier {
         // Find the best classifications.
         PriorityQueue<Recognition> pq =
                 new PriorityQueue<Recognition>(
-                        3,
+                        MAX_RESULTS,
                         new Comparator<Recognition>() {
                             @Override
                             public int compare(Recognition lhs, Recognition rhs) {

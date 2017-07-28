@@ -27,8 +27,6 @@ import android.widget.ToggleButton;
 import java.io.IOException;
 import java.util.List;
 
-import static com.example.company.birds_classifier_android.SoundBuffer.SPECTROGRAM_LENGTH;
-import static com.example.company.birds_classifier_android.SoundBuffer.WINDOW_SIZE;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -73,8 +71,8 @@ public class MainActivity extends AppCompatActivity {
         recordButton.setChecked(recordingActive);
     }
 
-    private static final int INPUT_HEIGHT = WINDOW_SIZE / 2;
-    private static final int INPUT_WIDTH = SPECTROGRAM_LENGTH;
+    private static final int INPUT_HEIGHT = SoundParameters.SampleSize;
+    private static final int INPUT_WIDTH = SoundParameters.SpectrogramLength ;
 
     private static final String INPUT_NAME = "input";
     private static final String OUTPUT_NAME = "output";

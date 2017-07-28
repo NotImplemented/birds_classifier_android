@@ -3,147 +3,81 @@ package com.example.company.birds_classifier_android;
 import android.media.AudioFormat;
 import android.provider.Settings;
 
+import static com.example.company.birds_classifier_android.SoundParameters.SampleSize;
+import static com.example.company.birds_classifier_android.SoundParameters.SpectrogramLength;
+import static com.example.company.birds_classifier_android.SoundParameters.TimeShift;
+
 /**
  * Created by Mikhail_Kaspiarovich on 2/20/2017.
  */
 
+
 public class SoundBuffer {
 
-    /* Raw sound data buffer. */
+    final int n;
+
     short buffer[];
-    int length;
-    int index;
-    int spectrogram_index = 0;
+    long index;
+    long spectrogram_index;
 
-    public static final int WINDOW_SIZE = 512;
-    public static final int TIME_SHIFT = (int)(WINDOW_SIZE * 0.25);
+    FastFourierTransform fft = new FastFourierTransform(SampleSize);
+    SpectrogramBuffer spectrogramBuffer;
 
-    public static final int FRAME_RATE = 22050;
-    public static final int SAMPLE_LENGTH = 10; // Seconds.
-
-    private FastFourierTransform fft = new FastFourierTransform(WINDOW_SIZE);
-    private Classifier classifier;
-
-    double[] hann = new double[WINDOW_SIZE];
-    double[] fft_buffer_x = new double[WINDOW_SIZE];
-    double[] fft_buffer_y = new double[WINDOW_SIZE];
-    double[] spectrogram = new double[WINDOW_SIZE];
-
-    public static final int SPECTROGRAM_LENGTH = (FRAME_RATE * SAMPLE_LENGTH - WINDOW_SIZE) / TIME_SHIFT + 1;
-    public static final int SPECTROGRAM_SHIFT = SPECTROGRAM_LENGTH / 4;
-
-    /* Spectrogram buffer. */
-    double[][] spectrogram_buffer = new double[SPECTROGRAM_LENGTH][];
-    int spectrogram_buffer_index = 0;
-    int spectrogram_classify_index = 0;
-
-    double[] image = null;
+    final double[] fourier_buffer_x = new double[SampleSize];
+    final double[] fourier_buffer_y = new double[SampleSize];
+    final double[] spectrogram_buffer =  new double[SampleSize];
 
     public SoundBuffer(Classifier imageClassifier, int SAMPLE_RATE, int CHANNELS, int ENCODING_BITS) {
 
-        classifier = imageClassifier;
-
-        length = SAMPLE_RATE;
-        buffer = new short[length];
+        n = SAMPLE_RATE;
+        buffer = new short[n];
         index = 0;
+        spectrogram_index = 0;
 
-        for(int i = 0; i < WINDOW_SIZE; ++i)
-            fft_buffer_x[i] = fft_buffer_y[i] = 0;
+        for(int i = 0; i < SampleSize; ++i)
+            fourier_buffer_x[i] = fourier_buffer_y[i] = 0;
 
-        for(int i = 0; i < SPECTROGRAM_LENGTH; ++i)
-            spectrogram_buffer[i] = new double[WINDOW_SIZE / 2];
-
-        for(int i = 0; i < WINDOW_SIZE; ++i)
-            hann[i] =  0.5 * (1.0 - Math.cos(2 * Math.PI * i / (WINDOW_SIZE - 1)) );
+        spectrogramBuffer = new SpectrogramBuffer(imageClassifier);
     }
 
     public void append(short[] data, int size) {
 
-        if (index % length + size <= length) {
+        if (index % n + size <= n) {
 
-            System.arraycopy(data, 0, buffer, index, size);
+            System.arraycopy(data, 0, buffer, (int)(index % n), size);
         }
         else {
 
-            int amount = length - index % length;
-            System.arraycopy(data, 0, buffer, index % length, amount);
+            int amount = n - (int)(index % n);
+            System.arraycopy(data, 0, buffer, (int)(index % n), amount);
             System.arraycopy(data, 0, buffer, 0, size - amount);
         }
         index += size;
 
-        while (spectrogram_index + WINDOW_SIZE < index) {
+        while (spectrogram_index + SampleSize < index) {
 
-            for (int i = 0, j = spectrogram_index % length; i < WINDOW_SIZE; ++i) {
+            for (int i = 0, j = (int)(spectrogram_index % n); i < SampleSize; ++i) {
 
-                fft_buffer_y[i] = buffer[j++] * hann[i];
+                fourier_buffer_y[i] = buffer[j++];
+                fourier_buffer_x[i] = 0;
 
-                if (j == this.length)
+                if (j == n)
                     j = 0;
             }
-            fft.fft(fft_buffer_x, fft_buffer_y);
-            for (int i = 0; i < WINDOW_SIZE / 2; ++i) {
+            fft.fft(fourier_buffer_x, fourier_buffer_y);
 
-                double amplitude = Math.sqrt(fft_buffer_x[i] * fft_buffer_x[i] + fft_buffer_y[i] * fft_buffer_y[i]);
-                spectrogram[i] = 20 * Math.log10(amplitude);
+            for (int i = 0; i < SampleSize; ++i) {
+
+                double x = fourier_buffer_x[i];
+                double y = fourier_buffer_y[i];
+
+                spectrogram_buffer[i] = Math.sqrt(x * x + y * y);
             }
 
-            spectrogram_index += TIME_SHIFT;
-            append(spectrogram);
+            spectrogram_index += TimeShift;
+
+            spectrogramBuffer.appendSpectrogram(spectrogram_buffer);
         }
     }
-
-    private double[] normalize(double[] data) {
-
-        double mn = Double.MAX_VALUE;
-        double mx = Double.MIN_VALUE;
-        for(int i = 0; i < data.length; ++i) {
-
-            mn = Math.min(data[i], mn);
-            mx = Math.max(data[i], mx);
-        }
-
-        if (mn != mx) {
-
-            for (int i = 0; i < data.length; ++i) {
-                data[i] = (data[i] - mn) / (mx - mn);
-            }
-        }
-
-        return data;
-    }
-
-    private void append(double[] spectrogram) {
-
-        System.arraycopy(spectrogram, 0, spectrogram_buffer[spectrogram_buffer_index % SPECTROGRAM_LENGTH], 0, WINDOW_SIZE);
-        ++spectrogram_buffer_index;
-
-        while (spectrogram_classify_index + SPECTROGRAM_LENGTH < spectrogram_buffer_index) {
-
-            // prepare image and send to nn
-            // [spectrogram_classify_index, spectrogram_classify_index + max_spectrogram_index]
-
-            if (image == null) {
-
-                image = new double[SPECTROGRAM_LENGTH * WINDOW_SIZE / 2];
-            }
-
-            int image_index = 0;
-            for (int i = 0, j = spectrogram_classify_index % length; i < SPECTROGRAM_LENGTH; ++i) {
-
-                System.arraycopy(spectrogram_buffer[j], 0, image, image_index, WINDOW_SIZE / 2);
-
-                ++j;
-                image_index += WINDOW_SIZE / 2;
-
-                if (j == SPECTROGRAM_LENGTH)
-                    j = 0;
-            }
-
-            image = normalize(image);
-            classifier.recognizeImage(image);
-
-            spectrogram_classify_index += SPECTROGRAM_SHIFT;
-        }
-    }
-
 }
+
