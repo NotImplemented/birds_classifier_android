@@ -75,12 +75,10 @@ public class MainActivity extends AppCompatActivity {
     private static final int INPUT_WIDTH = SoundParameters.SpectrogramLength ;
 
     private static final String INPUT_NAME = "input";
-    private static final String OUTPUT_NAME = "output";
+    private static final String OUTPUT_NAME = "predictions";
 
-    private static final String MODEL_FILE = "file:///android_asset/mnist_model_graph.pb";
+    private static final String MODEL_FILE = "file:///android_asset/frozen_model.pb";
     private static final String LABEL_FILE = "file:///android_asset/graph_label_strings.txt";
-
-    private static final String TAG = "MainActivity";
 
     private Classifier classifier;
 
@@ -95,14 +93,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void startRecording() {
 
-        textView.append("\nStart recording.");
+        textView.append("\n\nRecording has started.\n");
         recordingActive = true;
 
-        textView.append("\nChecking RECORD_AUDIO permission.");
+        textView.append("Checking RECORD_AUDIO permissions.\n");
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
 
-            textView.append("\nRequesting RECORD_AUDIO permission.");
+            textView.append("Requesting RECORD_AUDIO permissions.\n");
 
             ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.RECORD_AUDIO }, AUDIO_ECHO_REQUEST);
 
@@ -115,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
         }
         else {
 
-            textView.append("\nPermissions RECORD_AUDIO has been already granted.");
+            textView.append("Permissions RECORD_AUDIO were granted.\n");
         }
 
         if (classifier == null) {
@@ -127,11 +125,11 @@ public class MainActivity extends AppCompatActivity {
 
                 handler.post(new Runnable() { public void run() {
 
-                    textView.append(String.format("\nCannot create tensorflow instance.\nError message: %s", e.getMessage()));
+                    textView.append(String.format("Cannot create tensorflow instance.\nError message: %s\n", e.getMessage()));
 
                     recordingActive = false;
                     recordButton.setChecked(recordingActive);
-                }
+                    }
                 });
 
                 return;
@@ -147,20 +145,29 @@ public class MainActivity extends AppCompatActivity {
 
                     android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
 
-                    int bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-                    AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+                    final int sampleRate = 44100;
+                    final int encoding = AudioFormat.ENCODING_PCM_16BIT;
+
+                    handler.post(new Runnable() { public void run() { textView.append("Requesting minimal buffer size for rate = " + sampleRate + ", encoding = " + encoding + ".\n"); } });
+
+                    final int bufferSize = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, encoding);
+                    handler.post(new Runnable() { public void run() { textView.append("Minimal buffer size = " + bufferSize + ".\n"); } });
+
+                    int recordBufferSize = bufferSize < 0 ? 32768 : bufferSize;
+                    AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, recordBufferSize);
+                    handler.post(new Runnable() { public void run() { textView.append("AudioRecord was created.\n"); } });
 
                     short[] audioBuffer = new short[bufferSize];
 
                     if (record.getState() != AudioRecord.STATE_INITIALIZED) {
 
-                        handler.post(new Runnable() { public void run() { textView.append("\nCannot initialize audio record."); } });
+                        handler.post(new Runnable() { public void run() { textView.append("Cannot initialize audio record.\n"); } });
                     }
 
-                    soundBuffer = new SoundBuffer(classifier, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+                    soundBuffer = new SoundBuffer(classifier, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
                     record.startRecording();
 
-                    handler.post(new Runnable() { public void run() { textView.append("\nRecording was started."); } });
+                    handler.post(new Runnable() { public void run() { textView.append("Recording is active.\n"); } });
 
                     long frames = 0;
                     while (recordingActive) {
@@ -174,13 +181,13 @@ public class MainActivity extends AppCompatActivity {
                     record.release();
 
                     final long totalFrames = frames;
-                    handler.post(new Runnable() { public void run() { textView.append(String.format("\nRecording was stopped.\nFrames read: %d", totalFrames)); } });
+                    handler.post(new Runnable() { public void run() { textView.append(String.format("Recording was stopped.\nFrames read: %d.\n", totalFrames)); } });
                 }
                 catch(final Exception e) {
 
                     handler.post(new Runnable() { public void run() {
 
-                             textView.append(String.format("\nRecording was stopped unexpectedly.\nError message: %s", e.getMessage()));
+                             textView.append(String.format("Recording was stopped unexpectedly.\nError message: %s.\n", e.getMessage()));
 
                              recordingActive = false;
                              recordButton.setChecked(recordingActive);
@@ -194,7 +201,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopRecording() {
 
-        textView.append("\nStop recording.");
+        textView.append("Stopping recording.\n");
         recordingActive = false;
     }
 

@@ -64,7 +64,7 @@ public class TensorFlowImageClassifier implements Classifier {
 
         // Read the label names into memory.
         String actualFilename = labelFilename.split("file:///android_asset/")[1];
-        log("Reading labels from: " + actualFilename);
+        log("Reading labels from: " + actualFilename + ".\n");
         BufferedReader br = null;
         br = new BufferedReader(new InputStreamReader(assetManager.open(actualFilename)));
         String line;
@@ -79,7 +79,9 @@ public class TensorFlowImageClassifier implements Classifier {
         }
         // The shape of the output is [N, NUM_CLASSES], where N is the batch size.
         int classes = (int) c.inferenceInterface.graph().operation(outputName).output(0).shape().size(1);
-        log("Read " + c.labels.size() + " labels, output layer size is " + classes);
+        log("Read " + c.labels.size() + " labels, output layer size is " + classes + ".\n");
+        log("Model file name: " + modelFilename + ".\n");
+
 
         // Ideally, inputSize could have been retrieved from the shape of the input operation.  Alas,
         // the placeholder node for input in the graphdef typically used does not specify a shape, so it
