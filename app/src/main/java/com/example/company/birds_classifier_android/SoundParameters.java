@@ -10,7 +10,7 @@ public class SoundParameters {
     public final static int SampleSize = 512;
 
     // Time shift between consecutive frames
-    public final static int TimeShift = SampleSize / 2;
+    public final static int TimeShift = SampleSize / 4;
 
     // Sound frame rate
     public final static int MaxFrameRate = 16000;
@@ -18,9 +18,9 @@ public class SoundParameters {
     // Sample length in seconds to put to neural network
     public final static int SampleLength = 10;
 
-    // Sample length in seconds to put to neural network
-    public final static int SpectrogramShift = SampleLength / 2;
-
     // Width of the spectrograms buffer
     public final static int SpectrogramLength = (MaxFrameRate * SampleLength - SampleSize) / TimeShift + 1;
+
+    // Amount of spectrograms to shift (specifies period of running inception)
+    public final static int SpectrogramShift = SpectrogramLength / 2;
 }

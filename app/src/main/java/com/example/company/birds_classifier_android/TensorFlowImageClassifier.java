@@ -9,8 +9,10 @@ import org.tensorflow.contrib.android.TensorFlowInferenceInterface;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Vector;
@@ -77,9 +79,16 @@ public class TensorFlowImageClassifier implements Classifier {
         if (c.inferenceInterface.initializeTensorFlow(assetManager, modelFilename) != 0) {
             throw new RuntimeException("TensorFlow initialization failed");
         }
+        log("Read " + c.labels.size() + " labels.\n");
+
         // The shape of the output is [N, NUM_CLASSES], where N is the batch size.
-        int classes = (int) c.inferenceInterface.graph().operation(outputName).output(0).shape().size(1);
-        log("Read " + c.labels.size() + " labels, output layer size is " + classes + ".\n");
+        String output_shape = c.inferenceInterface.graph().operation(outputName).output(0).shape().toString();
+        int output_size = (int)c.inferenceInterface.graph().operation(outputName).output(0).shape().size(3);
+        log("Output layer size is " + output_shape + ".\n");
+
+        //String input = c.inferenceInterface.graph().operation(inputName).type();
+        //log("Input layer is " + input + ".\n");
+
         log("Model file name: " + modelFilename + ".\n");
 
 
@@ -91,21 +100,26 @@ public class TensorFlowImageClassifier implements Classifier {
 
         // Pre-allocate buffers.
         c.outputNames = new String[]{outputName};
-        c.outputs = new float[classes];
+        c.outputs = new float[output_size];
 
         return c;
     }
 
     @Override
-    public List<Recognition> recognizeImage(final double[] pixels) {
+    public List<Recognition> recognizeImage(final float[] pixels) {
 
         // Log this method so that it can be analyzed with systrace.
         Trace.beginSection("recognizeImage");
 
         // Copy the input data into TensorFlow.
         Trace.beginSection("fillNodeFloat");
-        inferenceInterface.fillNodeDouble(inputName, new int[]{inputHeight * inputWidth}, pixels);
+        inferenceInterface.fillNodeFloat(inputName, new int[] {inputHeight * inputWidth}, pixels);
         Trace.endSection();
+
+        // Display timestamp.
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
+        String time = sdf.format(new Date());
+        log(String.format("[%s] Running inference.\n", time));
 
         // Run the inference call.
         Trace.beginSection("runInference");
@@ -130,7 +144,7 @@ public class TensorFlowImageClassifier implements Classifier {
                         });
 
         for (int i = 0; i < outputs.length; ++i) {
-                pq.add(new Recognition("" + i, labels.size() > i ? labels.get(i) : "unknown", outputs[i], null));
+                pq.add(new Recognition("" + i, labels.size() > i ? labels.get(i) : "Unknown", outputs[i], null));
         }
 
         final ArrayList<Recognition> recognitions = new ArrayList<Recognition>();
@@ -142,7 +156,7 @@ public class TensorFlowImageClassifier implements Classifier {
 
         for(Recognition recognition : recognitions) {
 
-            log(String.format("Class '%s': Probability: %.6f", recognition.getTitle(), recognition.getConfidence()));
+            log(String.format("Bird \"%s\": %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
         }
 
         return recognitions;

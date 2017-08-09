@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
+import android.media.AudioTimestamp;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Bundle;
@@ -25,6 +26,9 @@ import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 
@@ -71,13 +75,13 @@ public class MainActivity extends AppCompatActivity {
         recordButton.setChecked(recordingActive);
     }
 
-    private static final int INPUT_HEIGHT = SoundParameters.SampleSize;
+    private static final int INPUT_HEIGHT = SoundParameters.SampleSize / 2;
     private static final int INPUT_WIDTH = SoundParameters.SpectrogramLength ;
 
     private static final String INPUT_NAME = "input";
     private static final String OUTPUT_NAME = "predictions";
 
-    private static final String MODEL_FILE = "file:///android_asset/frozen_model.pb";
+    private static final String MODEL_FILE = "file:///android_asset/optimized_mlsp_birds.pb";
     private static final String LABEL_FILE = "file:///android_asset/graph_label_strings.txt";
 
     private Classifier classifier;
@@ -89,6 +93,14 @@ public class MainActivity extends AppCompatActivity {
             textView.append(text);
         }
         });
+    }
+
+    public String getTime() {
+
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
+        final String time = sdf.format(new Date());
+
+        return time;
     }
 
     private void startRecording() {
@@ -125,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
 
                 handler.post(new Runnable() { public void run() {
 
-                    textView.append(String.format("Cannot create tensorflow instance.\nError message: %s\n", e.getMessage()));
+                    textView.append(String.format("Cannot create tensorflow instance.\nError message: %s.\n", e.getMessage()));
 
                     recordingActive = false;
                     recordButton.setChecked(recordingActive);
@@ -141,11 +153,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
 
+                AudioRecord record = null;
+
                 try {
 
                     android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
 
-                    final int sampleRate = 44100;
+                    final int sampleRate = SoundParameters.MaxFrameRate;
                     final int encoding = AudioFormat.ENCODING_PCM_16BIT;
 
                     handler.post(new Runnable() { public void run() { textView.append("Requesting minimal buffer size for rate = " + sampleRate + ", encoding = " + encoding + ".\n"); } });
@@ -153,47 +167,77 @@ public class MainActivity extends AppCompatActivity {
                     final int bufferSize = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, encoding);
                     handler.post(new Runnable() { public void run() { textView.append("Minimal buffer size = " + bufferSize + ".\n"); } });
 
-                    int recordBufferSize = bufferSize < 0 ? 32768 : bufferSize;
-                    AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, recordBufferSize);
+                    final int recordBufferSize = 2 * bufferSize;
+                    record = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, recordBufferSize);
                     handler.post(new Runnable() { public void run() { textView.append("AudioRecord was created.\n"); } });
 
-                    short[] audioBuffer = new short[bufferSize];
+                    short[] audioBuffer = new short[48000];
 
-                    if (record.getState() != AudioRecord.STATE_INITIALIZED) {
+                    if (record == null || record.getState() != AudioRecord.STATE_INITIALIZED) {
 
                         handler.post(new Runnable() { public void run() { textView.append("Cannot initialize audio record.\n"); } });
                     }
 
                     soundBuffer = new SoundBuffer(classifier, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-                    record.startRecording();
 
-                    handler.post(new Runnable() { public void run() { textView.append("Recording is active.\n"); } });
+                    handler.post(new Runnable() { public void run() { textView.append(String.format("[%s] Recording is active.\n", getTime())); } });
+
+                    ArrayList<Integer> debugInfo = new ArrayList<Integer>();
 
                     long frames = 0;
+
+                    if (record.getState() != AudioRecord.STATE_INITIALIZED)
+                    {
+                        handler.post(new Runnable() { public void run() { textView.append(String.format("[%s] AudioRecord is not initialized.\n", getTime())); } });
+                    }
+
+                    record.startRecording();
+
+                    if (record.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING)
+                    {
+                        handler.post(new Runnable() { public void run() { textView.append(String.format("[%s] AudioRecord is not recording.\n", getTime())); } });
+                    }
+
+                    int read = 0;
+                    int offset = 0;
                     while (recordingActive) {
 
-                        int read = record.read(audioBuffer, 0, audioBuffer.length);
-                        soundBuffer.append(audioBuffer, read);
-                        frames += read;
+                        read = record.read(audioBuffer, 0, recordBufferSize);
+
+                        if (read > 0) {
+
+                            soundBuffer.append(audioBuffer, offset, read);
+                            frames += read;
+
+                            // This is workaround of audio record problem. At the beginning it rewrites audio buffer several times.
+                            Thread.sleep(64);
+                        }
                     }
 
                     record.stop();
-                    record.release();
 
                     final long totalFrames = frames;
-                    handler.post(new Runnable() { public void run() { textView.append(String.format("Recording was stopped.\nFrames read: %d.\n", totalFrames)); } });
+
+                    handler.post(new Runnable() { public void run() { textView.append(String.format("[%s] Recording was stopped.\nFrames read: %d.\n", getTime(), totalFrames)); } });
                 }
                 catch(final Exception e) {
 
                     handler.post(new Runnable() { public void run() {
 
-                             textView.append(String.format("Recording was stopped unexpectedly.\nError message: %s.\n", e.getMessage()));
+                        textView.append(String.format("Recording was stopped unexpectedly.\nError message: %s.\n", e.getMessage()));
+                        e.printStackTrace();
 
-                             recordingActive = false;
-                             recordButton.setChecked(recordingActive);
+                        recordingActive = false;
+                        recordButton.setChecked(recordingActive);
 
                         }
                     });
+                }
+                finally {
+
+                    if (record != null)
+                        record.release();
+
                 }
             }
         }).start();

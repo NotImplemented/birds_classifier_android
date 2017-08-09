@@ -88,7 +88,7 @@ public interface Classifier {
         }
     }
 
-    List<Recognition> recognizeImage(double[] pixels);
+    List<Recognition> recognizeImage(float[] pixels);
 
     void enableStatLogging(final boolean debug);
 

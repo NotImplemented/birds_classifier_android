@@ -23,9 +23,9 @@ public class SoundBuffer {
     FastFourierTransform fft = new FastFourierTransform(SampleSize);
     SpectrogramBuffer spectrogramBuffer;
 
-    final double[] fourier_buffer_x = new double[SampleSize];
-    final double[] fourier_buffer_y = new double[SampleSize];
-    final double[] spectrogram_buffer =  new double[SampleSize];
+    final float[] fourier_buffer_x = new float[SampleSize];
+    final float[] fourier_buffer_y = new float[SampleSize];
+    final float[] spectrogram_buffer =  new float[SampleSize];
 
     public SoundBuffer(Classifier imageClassifier, int SAMPLE_RATE, int CHANNELS, int ENCODING_BITS) {
 
@@ -40,17 +40,17 @@ public class SoundBuffer {
         spectrogramBuffer = new SpectrogramBuffer(imageClassifier);
     }
 
-    public void append(short[] data, int size) {
+    public void append(short[] data, int offset, int size) {
 
         if (index % n + size <= n) {
 
-            System.arraycopy(data, 0, buffer, (int)(index % n), size);
+            System.arraycopy(data, offset, buffer, (int)(index % n), size);
         }
         else {
 
             int amount = n - (int)(index % n);
-            System.arraycopy(data, 0, buffer, (int)(index % n), amount);
-            System.arraycopy(data, 0, buffer, 0, size - amount);
+            System.arraycopy(data, offset, buffer, (int)(index % n), amount);
+            System.arraycopy(data, offset + amount, buffer, 0, size - amount);
         }
         index += size;
 
@@ -71,7 +71,7 @@ public class SoundBuffer {
                 double x = fourier_buffer_x[i];
                 double y = fourier_buffer_y[i];
 
-                spectrogram_buffer[i] = Math.sqrt(x * x + y * y);
+                spectrogram_buffer[i] = (float)Math.sqrt(x * x + y * y);
             }
 
             spectrogram_index += TimeShift;

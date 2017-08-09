@@ -9,8 +9,8 @@ public class FastFourierTransform {
     int n, m;
 
     // Lookup tables. Only need to recompute when size of FFT changes.
-    double[] cos;
-    double[] sin;
+    float[] cos;
+    float[] sin;
 
     public FastFourierTransform(int n) {
 
@@ -22,19 +22,19 @@ public class FastFourierTransform {
             throw new RuntimeException("Fourier transform buffer length must be power of 2");
 
         // precompute tables
-        cos = new double[n / 2];
-        sin = new double[n / 2];
+        cos = new float[n / 2];
+        sin = new float[n / 2];
 
         for (int i = 0; i < n / 2; i++) {
-            cos[i] = Math.cos(-2 * Math.PI * i / n);
-            sin[i] = Math.sin(-2 * Math.PI * i / n);
+            cos[i] = (float)Math.cos(-2 * Math.PI * i / n);
+            sin[i] = (float)Math.sin(-2 * Math.PI * i / n);
         }
 
     }
 
-    public void fft(double[] x, double[] y) {
+    public void fft(float[] x, float[] y) {
         int i, j, k, n1, n2, a;
-        double c, s, t1, t2;
+        float c, s, t1, t2;
 
         // Bit-reverse
         j = 0;
