@@ -171,7 +171,7 @@ public class MainActivity extends AppCompatActivity {
                     record = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, recordBufferSize);
                     handler.post(new Runnable() { public void run() { textView.append("AudioRecord was created.\n"); } });
 
-                    short[] audioBuffer = new short[48000];
+                    short[] audioBuffer = new short[recordBufferSize];
 
                     if (record == null || record.getState() != AudioRecord.STATE_INITIALIZED) {
 
