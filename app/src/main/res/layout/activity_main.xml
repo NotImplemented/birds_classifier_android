@@ -13,12 +13,12 @@
     android:minHeight="@android:dimen/app_icon_size"
     android:minWidth="@android:dimen/app_icon_size">
 
-
     <TextView
         android:id="@+id/text_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="bottom"
+        android:scrollbars="vertical"
         android:text="Birds classification by audio recording.\nUnmute microphone to start listening.\n" />
 
     <ToggleButton

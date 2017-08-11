@@ -15,11 +15,15 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.text.method.ScrollingMovementMethod;
 import android.text.style.ImageSpan;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -37,7 +41,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "birds_classification";
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
     private static final int AUDIO_ECHO_REQUEST = 0;
-    private static final int SAMPLE_RATE = 16000;
 
     private boolean recordingActive = false;
 
@@ -47,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView textView;
     private ToggleButton recordButton;
     private SoundBuffer soundBuffer;
+    private ImageView imageView;
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -103,9 +107,26 @@ public class MainActivity extends AppCompatActivity {
         return time;
     }
 
+    private void showToast(String text)
+    {
+        LayoutInflater inflater = getLayoutInflater();
+        View layout = inflater.inflate(R.layout.custom_toast, (ViewGroup) findViewById(R.id.custom_toast_container));
+
+        TextView textView = (TextView) layout.findViewById(R.id.text);
+        textView.setText(text);
+
+        Toast toast = new Toast(getApplicationContext());
+        toast.setGravity(Gravity.FILL_HORIZONTAL | Gravity.BOTTOM, 0, 0);
+        toast.setDuration(Toast.LENGTH_LONG);
+        toast.setView(layout);
+        toast.show();
+    }
+
     private void startRecording() {
 
-        textView.append("\n\nRecording has started.\n");
+        showToast("Brown creeper");
+
+        textView.append(String.format("\n\n[%s] Recording has started.\n", getTime()));
         recordingActive = true;
 
         textView.append("Checking RECORD_AUDIO permissions.\n");
@@ -184,8 +205,6 @@ public class MainActivity extends AppCompatActivity {
 
                     ArrayList<Integer> debugInfo = new ArrayList<Integer>();
 
-                    long frames = 0;
-
                     if (record.getState() != AudioRecord.STATE_INITIALIZED)
                     {
                         handler.post(new Runnable() { public void run() { textView.append(String.format("[%s] AudioRecord is not initialized.\n", getTime())); } });
@@ -198,23 +217,25 @@ public class MainActivity extends AppCompatActivity {
                         handler.post(new Runnable() { public void run() { textView.append(String.format("[%s] AudioRecord is not recording.\n", getTime())); } });
                     }
 
+                    // This is workaround of audio record problem.
+                    // At the beginning it rewrites audio buffer several times.
+                    Thread.sleep(256);
+
                     int read = 0;
-                    int offset = 0;
+                    long frames = 0;
                     while (recordingActive) {
 
                         read = record.read(audioBuffer, 0, recordBufferSize);
 
                         if (read > 0) {
 
-                            soundBuffer.append(audioBuffer, offset, read);
+                            soundBuffer.append(audioBuffer, 0, read);
                             frames += read;
-
-                            // This is workaround of audio record problem. At the beginning it rewrites audio buffer several times.
-                            Thread.sleep(64);
                         }
                     }
 
                     record.stop();
+                    record.release();
 
                     final long totalFrames = frames;
 
@@ -224,28 +245,31 @@ public class MainActivity extends AppCompatActivity {
 
                     handler.post(new Runnable() { public void run() {
 
-                        textView.append(String.format("Recording was stopped unexpectedly.\nError message: %s.\n", e.getMessage()));
+                        textView.append(String.format("[%s] Recording was stopped unexpectedly.\nError message: %s.\n", getTime(), e.getMessage()));
                         e.printStackTrace();
-
-                        recordingActive = false;
-                        recordButton.setChecked(recordingActive);
 
                         }
                     });
                 }
                 finally {
 
-                    if (record != null)
-                        record.release();
+                    handler.post(new Runnable() { public void run() {
+
+                        recordingActive = false;
+                        recordButton.setChecked(recordingActive);
+
+                        }
+                    });
 
                 }
+
             }
         }).start();
     }
 
     private void stopRecording() {
 
-        textView.append("Stopping recording.\n");
+        textView.append(String.format("[%s] Stopping recording.\n", getTime()));
         recordingActive = false;
     }
 
@@ -263,6 +287,9 @@ public class MainActivity extends AppCompatActivity {
 
         textView = (TextView) findViewById(R.id.text_view);
         recordButton = (ToggleButton) findViewById(R.id.toggle_button);
+        imageView = (ImageView) findViewById(R.id.image_view);
+
+        textView.setMovementMethod(new ScrollingMovementMethod());
     }
 
     @Override
