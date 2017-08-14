@@ -36,7 +36,8 @@ import java.util.Date;
 import java.util.List;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity
+        implements ClassifierNotification {
 
     private static final String LOG_TAG = "birds_classification";
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
@@ -107,24 +108,32 @@ public class MainActivity extends AppCompatActivity {
         return time;
     }
 
-    private void showToast(String text)
+    public void showNotification(String text) {
+
+        showToast(text);
+    }
+
+    private void showToast(final String text)
     {
-        LayoutInflater inflater = getLayoutInflater();
-        View layout = inflater.inflate(R.layout.custom_toast, (ViewGroup) findViewById(R.id.custom_toast_container));
+        handler.post(new Runnable() { public void run() {
 
-        TextView textView = (TextView) layout.findViewById(R.id.text);
-        textView.setText(text);
+            LayoutInflater inflater = getLayoutInflater();
+            View layout = inflater.inflate(R.layout.custom_toast, (ViewGroup) findViewById(R.id.custom_toast_container));
 
-        Toast toast = new Toast(getApplicationContext());
-        toast.setGravity(Gravity.FILL_HORIZONTAL | Gravity.BOTTOM, 0, 0);
-        toast.setDuration(Toast.LENGTH_LONG);
-        toast.setView(layout);
-        toast.show();
+            TextView textView = (TextView) layout.findViewById(R.id.text);
+            textView.setText(text);
+
+            Toast toast = new Toast(getApplicationContext());
+            toast.setGravity(Gravity.FILL_HORIZONTAL | Gravity.BOTTOM, 0, 0);
+            toast.setDuration(Toast.LENGTH_LONG);
+            toast.setView(layout);
+            toast.show();
+
+        }
+        });
     }
 
     private void startRecording() {
-
-        showToast("Brown creeper");
 
         textView.append(String.format("\n\n[%s] Recording has started.\n", getTime()));
         recordingActive = true;
@@ -197,6 +206,7 @@ public class MainActivity extends AppCompatActivity {
                     if (record == null || record.getState() != AudioRecord.STATE_INITIALIZED) {
 
                         handler.post(new Runnable() { public void run() { textView.append("Cannot initialize audio record.\n"); } });
+                        return;
                     }
 
                     soundBuffer = new SoundBuffer(classifier, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
@@ -208,17 +218,20 @@ public class MainActivity extends AppCompatActivity {
                     if (record.getState() != AudioRecord.STATE_INITIALIZED)
                     {
                         handler.post(new Runnable() { public void run() { textView.append(String.format("[%s] AudioRecord is not initialized.\n", getTime())); } });
+                        return;
                     }
 
                     record.startRecording();
 
                     if (record.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING)
                     {
-                        handler.post(new Runnable() { public void run() { textView.append(String.format("[%s] AudioRecord is not recording.\n", getTime())); } });
+                        handler.post(new Runnable() { public void run() { textView.append(String.format("[%s] AudioRecord is not in recording state.\n", getTime())); } });
+                        return;
                     }
 
                     // This is workaround of audio record problem.
                     // At the beginning it rewrites audio buffer several times.
+                    // Let it initialize properly.
                     Thread.sleep(256);
 
                     int read = 0;

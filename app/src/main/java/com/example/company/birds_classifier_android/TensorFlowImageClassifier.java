@@ -22,15 +22,12 @@ public class TensorFlowImageClassifier implements Classifier {
 
     private static final String TAG = "TensorFlowImageClassifier";
 
-    // Only return this many results with at least this confidence.
-    private static final int MAX_RESULTS = 3;
-    private static final float THRESHOLD = 0.1f;
-
     // Config values.
     private String inputName;
     private String outputName;
     private int inputWidth;
     private int inputHeight;
+    private int outputSize;
 
     // Pre-allocated buffers.
     private Vector<String> labels = new Vector<String>();
@@ -83,7 +80,7 @@ public class TensorFlowImageClassifier implements Classifier {
 
         // The shape of the output is [N, NUM_CLASSES], where N is the batch size.
         String output_shape = c.inferenceInterface.graph().operation(outputName).output(0).shape().toString();
-        int output_size = (int)c.inferenceInterface.graph().operation(outputName).output(0).shape().size(3);
+        c.outputSize = (int)c.inferenceInterface.graph().operation(outputName).output(0).shape().size(3);
         log("Output layer size is " + output_shape + ".\n");
 
         //String input = c.inferenceInterface.graph().operation(inputName).type();
@@ -100,7 +97,7 @@ public class TensorFlowImageClassifier implements Classifier {
 
         // Pre-allocate buffers.
         c.outputNames = new String[]{outputName};
-        c.outputs = new float[output_size];
+        c.outputs = new float[c.outputSize];
 
         return c;
     }
@@ -134,7 +131,7 @@ public class TensorFlowImageClassifier implements Classifier {
         // Find the best classifications.
         PriorityQueue<Recognition> pq =
                 new PriorityQueue<Recognition>(
-                        MAX_RESULTS,
+                        outputSize,
                         new Comparator<Recognition>() {
                             @Override
                             public int compare(Recognition lhs, Recognition rhs) {
@@ -148,7 +145,7 @@ public class TensorFlowImageClassifier implements Classifier {
         }
 
         final ArrayList<Recognition> recognitions = new ArrayList<Recognition>();
-        int recognitionsSize = Math.min(pq.size(), MAX_RESULTS);
+        int recognitionsSize = Math.min(pq.size(), outputSize);
         for (int i = 0; i < recognitionsSize; ++i) {
             recognitions.add(pq.poll());
         }
@@ -157,6 +154,40 @@ public class TensorFlowImageClassifier implements Classifier {
         for(Recognition recognition : recognitions) {
 
             log(String.format("Bird \"%s\": %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
+        }
+
+        double mean = 0;
+        int n = 0;
+        for(Recognition recognition : recognitions) {
+
+            mean += recognition.getConfidence();
+            n += 1;
+        }
+
+        mean /= n;
+
+        double stddev = 0;
+        for(Recognition recognition : recognitions) {
+
+            double d = (mean - recognition.getConfidence());
+
+            stddev += d * d;
+        }
+
+        stddev = Math.sqrt(stddev / n);
+
+        log(String.format("Mean = %.4f Deviation = %.4f\n", mean, stddev));
+
+        for (Recognition recognition : recognitions) {
+
+            double low = mean - 2 * stddev;
+            double high = mean + 2 * stddev;
+
+            if (recognition.getConfidence() > high)
+            {
+                log(String.format("Bird \"%s\" is detected: %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
+                activity.showNotification(String.format("%s: %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
+            }
         }
 
         return recognitions;
