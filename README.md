@@ -1,9 +1,9 @@
 # Birds Classifier
 
 Birds classification based real-time sound recording.
-Neural network trained in the [https://github.com/NotImplemented/mlsp-bird-classification] project.
+Neural network trained in the [[https://github.com/NotImplemented/mlsp-bird-classification]] project.
 
-![Android application](https://github.com/NotImplemented/birds_classifier_android/blob/master/birds-classifier.png)
+![Android application](https://github.com/NotImplemented/birds_classifier_android/Birds-classifier.png)
 
   The following North American species are detected:
    - Brown Creeper
