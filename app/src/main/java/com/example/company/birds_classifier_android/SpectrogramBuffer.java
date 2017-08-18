@@ -39,7 +39,7 @@ public class SpectrogramBuffer {
 
         while (classified_index + SpectrogramLength <= index) {
 
-            // Prepare image and send to neural network
+            // Prepare image and send to neural network.
             // [spectrogram_classify_index, spectrogram_classify_index + spectrogram_length]
 
             for(int i = 0; i < SpectrogramLength; ++i)

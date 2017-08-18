@@ -3,12 +3,15 @@ package com.example.company.birds_classifier_android;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.AudioTimestamp;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -29,7 +32,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -81,12 +87,13 @@ public class MainActivity extends AppCompatActivity
     }
 
     private static final int INPUT_HEIGHT = SoundParameters.SampleSize / 2;
-    private static final int INPUT_WIDTH = SoundParameters.SpectrogramLength ;
+    private static final int INPUT_WIDTH = SoundParameters.SpectrogramLength;
 
     private static final String INPUT_NAME = "input";
     private static final String OUTPUT_NAME = "predictions";
 
     private static final String MODEL_FILE = "file:///android_asset/optimized_mlsp_birds.pb";
+    private static final String FROZEN_MODEL_FILE = "file:///android_asset/frozen_mlsp_birds.pb";
     private static final String LABEL_FILE = "file:///android_asset/graph_label_strings.txt";
 
     private Classifier classifier;
@@ -113,8 +120,37 @@ public class MainActivity extends AppCompatActivity
         showToast(text);
     }
 
-    private void showToast(final String text)
-    {
+    public void displayRecognitionData(float[] pixels, int height, int width) {
+
+        float mn = Float.MAX_VALUE;
+        float mx = Float.MIN_VALUE;
+
+        for(int i = 0; i < pixels.length; ++i) {
+
+            mn = Math.min(mn, pixels[i]);
+            mx = Math.max(mx, pixels[i]);
+        }
+
+        final int[] imageArray = new int[pixels.length];
+
+        for (int i = 0; i < pixels.length; i++) {
+
+            int a = 0xFF000000;
+            int p = (int)(256 * (pixels[i] - mn) / (mx - mn));
+            imageArray[i] = a + (p + (p << 8) + (p << 16));
+        }
+
+        final Bitmap bitmap = Bitmap.createBitmap(imageArray, width, height, Bitmap.Config.ARGB_8888);
+
+        handler.post(new Runnable() { public void run() {
+
+            imageView.setImageBitmap(bitmap);
+            imageView.refreshDrawableState();
+        }});
+    }
+
+    private void showToast(final String text) {
+
         handler.post(new Runnable() { public void run() {
 
             LayoutInflater inflater = getLayoutInflater();
@@ -125,12 +161,27 @@ public class MainActivity extends AppCompatActivity
 
             Toast toast = new Toast(getApplicationContext());
             toast.setGravity(Gravity.FILL_HORIZONTAL | Gravity.BOTTOM, 0, 0);
-            toast.setDuration(Toast.LENGTH_LONG);
+            toast.setDuration(Toast.LENGTH_SHORT);
             toast.setView(layout);
             toast.show();
 
         }
         });
+    }
+
+    byte[] ShortToByte(short[] buffer) {
+
+        int N = buffer.length;
+        ByteBuffer byteBuffer = ByteBuffer.allocate(N);
+
+        int i = 0;
+        while (i < N) {
+
+            byte b = (byte)(buffer[i] / 256);  /*convert to byte. */
+            byteBuffer.put(b);
+            i++;
+        }
+        return byteBuffer.array();
     }
 
     private void startRecording() {
@@ -161,7 +212,8 @@ public class MainActivity extends AppCompatActivity
         if (classifier == null) {
 
             try {
-                classifier = TensorFlowImageClassifier.create(this, getAssets(), MODEL_FILE, LABEL_FILE, INPUT_HEIGHT, INPUT_WIDTH, INPUT_NAME, OUTPUT_NAME);
+
+                classifier = TensorFlowImageClassifier.create(this, getAssets(), FROZEN_MODEL_FILE, LABEL_FILE, INPUT_HEIGHT, INPUT_WIDTH, INPUT_NAME, OUTPUT_NAME);
             }
             catch (final Exception e) {
 
@@ -184,8 +236,16 @@ public class MainActivity extends AppCompatActivity
             public void run() {
 
                 AudioRecord record = null;
+                FileOutputStream os = null;
 
                 try {
+
+                    String filepath = Environment.getExternalStorageDirectory().getPath();
+                    try {
+                        os = new FileOutputStream(filepath+"/record.pcm");
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
 
                     android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
 
@@ -197,7 +257,7 @@ public class MainActivity extends AppCompatActivity
                     final int bufferSize = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, encoding);
                     handler.post(new Runnable() { public void run() { textView.append("Minimal buffer size = " + bufferSize + ".\n"); } });
 
-                    final int recordBufferSize = 2 * bufferSize;
+                    final int recordBufferSize = bufferSize * 8;
                     record = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, recordBufferSize);
                     handler.post(new Runnable() { public void run() { textView.append("AudioRecord was created.\n"); } });
 
@@ -242,6 +302,9 @@ public class MainActivity extends AppCompatActivity
 
                         if (read > 0) {
 
+                            if (os != null)
+                                os.write(ShortToByte(audioBuffer), 0, recordBufferSize);
+
                             soundBuffer.append(audioBuffer, 0, read);
                             frames += read;
                         }
@@ -265,6 +328,13 @@ public class MainActivity extends AppCompatActivity
                     });
                 }
                 finally {
+
+                    if (os != null)
+                        try {
+                            os.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
 
                     handler.post(new Runnable() { public void run() {
 

@@ -6,7 +6,9 @@
     android:padding="8dp"
     android:background="#DAAA"
     >
-    <ImageView android:src="@drawable/ic_bird_singing_with_musical_notes"
+    <ImageView
+        android:id="@+id/toast_image_view"
+        android:src="@drawable/ic_bird_singing_with_musical_notes"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginRight="8dp"

@@ -33,6 +33,8 @@ public class TensorFlowImageClassifier implements Classifier {
     private Vector<String> labels = new Vector<String>();
     private float[] outputs;
     private String[] outputNames;
+    private ArrayList<Recognition> recognitions;
+
     private static MainActivity activity;
 
     private TensorFlowInferenceInterface inferenceInterface;
@@ -86,7 +88,7 @@ public class TensorFlowImageClassifier implements Classifier {
         //String input = c.inferenceInterface.graph().operation(inputName).type();
         //log("Input layer is " + input + ".\n");
 
-        log("Model file name: " + modelFilename + ".\n");
+        log("Model file: " + modelFilename + ".\n");
 
 
         // Ideally, inputSize could have been retrieved from the shape of the input operation.  Alas,
@@ -129,36 +131,35 @@ public class TensorFlowImageClassifier implements Classifier {
         Trace.endSection();
 
         // Find the best classifications.
-        PriorityQueue<Recognition> pq =
-                new PriorityQueue<Recognition>(
-                        outputSize,
-                        new Comparator<Recognition>() {
-                            @Override
-                            public int compare(Recognition lhs, Recognition rhs) {
-                                // Intentionally reversed to put high confidence at the head of the queue.
-                                return Float.compare(rhs.getConfidence(), lhs.getConfidence());
-                            }
-                        });
+        ArrayList<Recognition> list = new ArrayList<>();
 
         for (int i = 0; i < outputs.length; ++i) {
-                pq.add(new Recognition("" + i, labels.size() > i ? labels.get(i) : "Unknown", outputs[i], null));
+
+            list.add(new Recognition("" + i, labels.size() > i ? labels.get(i) : "Unknown", outputs[i], null));
         }
 
-        final ArrayList<Recognition> recognitions = new ArrayList<Recognition>();
-        int recognitionsSize = Math.min(pq.size(), outputSize);
-        for (int i = 0; i < recognitionsSize; ++i) {
-            recognitions.add(pq.poll());
-        }
         Trace.endSection(); // "recognizeImage"
 
-        for(Recognition recognition : recognitions) {
+        if (recognitions == null) {
 
-            log(String.format("Bird \"%s\": %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
+            for (Recognition recognition : list) {
+
+                log(String.format("Bird \"%s\": %.4f\n", recognition.getTitle(), recognition.getConfidence()));
+            }
+
+            recognitions = list;
+        }
+        else
+        {
+            for(int i = 0; i < list.size(); ++i)
+            {
+                log(String.format("Bird \"%s\": diff = %.4f\n", list.get(i).getTitle(), list.get(i).getConfidence() - recognitions.get(i).getConfidence()));
+            }
         }
 
         double mean = 0;
         int n = 0;
-        for(Recognition recognition : recognitions) {
+        for(Recognition recognition : list) {
 
             mean += recognition.getConfidence();
             n += 1;
@@ -167,7 +168,7 @@ public class TensorFlowImageClassifier implements Classifier {
         mean /= n;
 
         double stddev = 0;
-        for(Recognition recognition : recognitions) {
+        for(Recognition recognition : list) {
 
             double d = (mean - recognition.getConfidence());
 
@@ -185,26 +186,31 @@ public class TensorFlowImageClassifier implements Classifier {
 
             if (recognition.getConfidence() > high)
             {
-                log(String.format("Bird \"%s\" is detected: %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
-                activity.showNotification(String.format("%s: %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
+                //log(String.format("Bird \"%s\" is detected: %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
+                //activity.showNotification(String.format("%s: %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
             }
         }
+
+        activity.displayRecognitionData(pixels, inputHeight, inputWidth);
 
         return recognitions;
     }
 
     @Override
     public void enableStatLogging(boolean debug) {
+
         inferenceInterface.enableStatLogging(debug);
     }
 
     @Override
     public String getStatString() {
+
         return inferenceInterface.getStatString();
     }
 
     @Override
     public void close() {
+
         inferenceInterface.close();
     }
 

@@ -35,5 +35,13 @@
         android:minHeight="@android:dimen/app_icon_size"
         android:minWidth="@android:dimen/app_icon_size" />
 
+    <ImageView
+        android:id="@+id/image_view"
+        android:src="@drawable/ic_bird_singing_with_musical_notes"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/image_border"
+        android:adjustViewBounds="true"
+        />
 
 </RelativeLayout>

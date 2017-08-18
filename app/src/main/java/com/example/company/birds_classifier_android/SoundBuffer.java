@@ -3,6 +3,7 @@ package com.example.company.birds_classifier_android;
 import android.media.AudioFormat;
 import android.provider.Settings;
 
+import static com.example.company.birds_classifier_android.SoundParameters.SampleLength;
 import static com.example.company.birds_classifier_android.SoundParameters.SampleSize;
 import static com.example.company.birds_classifier_android.SoundParameters.SpectrogramLength;
 import static com.example.company.birds_classifier_android.SoundParameters.TimeShift;
@@ -29,7 +30,7 @@ public class SoundBuffer {
 
     public SoundBuffer(Classifier imageClassifier, int SAMPLE_RATE, int CHANNELS, int ENCODING_BITS) {
 
-        n = SAMPLE_RATE;
+        n = SAMPLE_RATE * SampleLength;
         buffer = new short[n];
         index = 0;
         spectrogram_index = 0;
@@ -54,12 +55,12 @@ public class SoundBuffer {
         }
         index += size;
 
-        while (spectrogram_index + SampleSize < index) {
+        while (spectrogram_index + SampleSize <= index) {
 
             for (int i = 0, j = (int)(spectrogram_index % n); i < SampleSize; ++i) {
 
-                fourier_buffer_y[i] = buffer[j++];
-                fourier_buffer_x[i] = 0;
+                fourier_buffer_y[i] = 0;
+                fourier_buffer_x[i] = buffer[j++];
 
                 if (j == n)
                     j = 0;
@@ -73,6 +74,8 @@ public class SoundBuffer {
 
                 spectrogram_buffer[i] = (float)Math.sqrt(x * x + y * y);
             }
+
+            spectrogram_buffer[0] = 0;
 
             spectrogram_index += TimeShift;
 
