@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
@@ -83,7 +84,7 @@ public class TensorFlowImageClassifier implements Classifier {
         // The shape of the output is [N, NUM_CLASSES], where N is the batch size.
         String output_shape = c.inferenceInterface.graph().operation(outputName).output(0).shape().toString();
         c.outputSize = (int)c.inferenceInterface.graph().operation(outputName).output(0).shape().size(3);
-        log("Output layer size is " + output_shape + ".\n");
+        log("Output layer: " + output_shape + ".\n");
 
         //String input = c.inferenceInterface.graph().operation(inputName).type();
         //log("Input layer is " + input + ".\n");
@@ -112,7 +113,7 @@ public class TensorFlowImageClassifier implements Classifier {
 
         // Copy the input data into TensorFlow.
         Trace.beginSection("fillNodeFloat");
-        inferenceInterface.fillNodeFloat(inputName, new int[] {inputHeight * inputWidth}, pixels);
+        inferenceInterface.fillNodeFloat(inputName, new int[]{inputHeight * inputWidth}, pixels);
         Trace.endSection();
 
         // Display timestamp.
@@ -142,54 +143,40 @@ public class TensorFlowImageClassifier implements Classifier {
 
         if (recognitions == null) {
 
+            log(String.format("Displaying basic levels.\n"));
             for (Recognition recognition : list) {
 
                 log(String.format("Bird \"%s\": %.4f\n", recognition.getTitle(), recognition.getConfidence()));
             }
 
-            recognitions = list;
+            recognitions = (ArrayList<Recognition>) list.clone();
         }
-        else
-        {
-            for(int i = 0; i < list.size(); ++i)
-            {
-                log(String.format("Bird \"%s\": diff = %.4f\n", list.get(i).getTitle(), list.get(i).getConfidence() - recognitions.get(i).getConfidence()));
+        else {
+
+            for (int i = 0; i < list.size(); ++i) {
+                float d = list.get(i).getConfidence() - recognitions.get(i).getConfidence();
+                list.get(i).setDifference(d);
+            }
+
+            Collections.sort(list, new Comparator<Recognition>() {
+
+                @Override
+                public int compare(Recognition o1, Recognition o2) {
+
+                    return (int)Math.signum(o2.getDifference() - o1.getDifference());
+                }
+            });
+
+            for (int i = 0; i < list.size(); ++i) {
+                log(String.format("Bird \"%s\": diff = %.4f\n", list.get(i).getTitle(), list.get(i).getDifference()));
+
+                if (list.get(i).getDifference() >= 0.025) {
+
+                    activity.showNotification(String.format("%s: %.4f\n", list.get(i).getTitle(), list.get(i).getDifference()));
+                }
             }
         }
 
-        double mean = 0;
-        int n = 0;
-        for(Recognition recognition : list) {
-
-            mean += recognition.getConfidence();
-            n += 1;
-        }
-
-        mean /= n;
-
-        double stddev = 0;
-        for(Recognition recognition : list) {
-
-            double d = (mean - recognition.getConfidence());
-
-            stddev += d * d;
-        }
-
-        stddev = Math.sqrt(stddev / n);
-
-        log(String.format("Mean = %.4f Deviation = %.4f\n", mean, stddev));
-
-        for (Recognition recognition : recognitions) {
-
-            double low = mean - 2 * stddev;
-            double high = mean + 2 * stddev;
-
-            if (recognition.getConfidence() > high)
-            {
-                //log(String.format("Bird \"%s\" is detected: %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
-                //activity.showNotification(String.format("%s: %.4f.\n", recognition.getTitle(), recognition.getConfidence()));
-            }
-        }
 
         activity.displayRecognitionData(pixels, inputHeight, inputWidth);
 

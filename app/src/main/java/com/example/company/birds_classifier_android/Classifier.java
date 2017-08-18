@@ -37,8 +37,10 @@ public interface Classifier {
          */
         private RectF location;
 
-        public Recognition(
-                final String id, final String title, final Float confidence, final RectF location) {
+        private float difference;
+
+        public Recognition(final String id, final String title, final Float confidence, final RectF location) {
+
             this.id = id;
             this.title = title;
             this.confidence = confidence;
@@ -55,6 +57,16 @@ public interface Classifier {
 
         public Float getConfidence() {
             return confidence;
+        }
+
+        public Float getDifference() {
+
+            return difference;
+        }
+
+        public void setDifference(float d) {
+
+            difference = d;
         }
 
         public RectF getLocation() {

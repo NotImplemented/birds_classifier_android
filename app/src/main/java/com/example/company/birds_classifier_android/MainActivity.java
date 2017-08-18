@@ -131,13 +131,20 @@ public class MainActivity extends AppCompatActivity
             mx = Math.max(mx, pixels[i]);
         }
 
-        final int[] imageArray = new int[pixels.length];
 
-        for (int i = 0; i < pixels.length; i++) {
+        final int[] imageArray = new int[width * height];
 
-            int a = 0xFF000000;
-            int p = (int)(256 * (pixels[i] - mn) / (mx - mn));
-            imageArray[i] = a + (p + (p << 8) + (p << 16));
+        for (int i = 0; i < height; i++) {
+
+            for (int j = 0; j < width; j++) {
+
+                int a = 0xFF000000;
+                int p = (int) (256 * (pixels[i * width + j] - mn) / (mx - mn));
+
+                imageArray[i * width + j] = a | p | (p << 8) | (p << 16);
+
+            }
+
         }
 
         final Bitmap bitmap = Bitmap.createBitmap(imageArray, width, height, Bitmap.Config.ARGB_8888);
@@ -209,25 +216,23 @@ public class MainActivity extends AppCompatActivity
             textView.append("Permissions RECORD_AUDIO were granted.\n");
         }
 
-        if (classifier == null) {
 
-            try {
+        try {
 
-                classifier = TensorFlowImageClassifier.create(this, getAssets(), FROZEN_MODEL_FILE, LABEL_FILE, INPUT_HEIGHT, INPUT_WIDTH, INPUT_NAME, OUTPUT_NAME);
-            }
-            catch (final Exception e) {
+            classifier = TensorFlowImageClassifier.create(this, getAssets(), FROZEN_MODEL_FILE, LABEL_FILE, INPUT_HEIGHT, INPUT_WIDTH, INPUT_NAME, OUTPUT_NAME);
+        }
+        catch (final Exception e) {
 
-                handler.post(new Runnable() { public void run() {
+            handler.post(new Runnable() { public void run() {
 
-                    textView.append(String.format("Cannot create tensorflow instance.\nError message: %s.\n", e.getMessage()));
+                textView.append(String.format("Cannot create tensorflow instance.\nError message: %s.\n", e.getMessage()));
 
-                    recordingActive = false;
-                    recordButton.setChecked(recordingActive);
-                    }
-                });
+                recordingActive = false;
+                recordButton.setChecked(recordingActive);
+                }
+            });
 
-                return;
-            }
+            return;
         }
 
         new Thread(new Runnable() {
@@ -236,16 +241,8 @@ public class MainActivity extends AppCompatActivity
             public void run() {
 
                 AudioRecord record = null;
-                FileOutputStream os = null;
 
                 try {
-
-                    String filepath = Environment.getExternalStorageDirectory().getPath();
-                    try {
-                        os = new FileOutputStream(filepath+"/record.pcm");
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    }
 
                     android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
 
@@ -292,7 +289,7 @@ public class MainActivity extends AppCompatActivity
                     // This is workaround of audio record problem.
                     // At the beginning it rewrites audio buffer several times.
                     // Let it initialize properly.
-                    Thread.sleep(256);
+                    Thread.sleep(512);
 
                     int read = 0;
                     long frames = 0;
@@ -301,9 +298,6 @@ public class MainActivity extends AppCompatActivity
                         read = record.read(audioBuffer, 0, recordBufferSize);
 
                         if (read > 0) {
-
-                            if (os != null)
-                                os.write(ShortToByte(audioBuffer), 0, recordBufferSize);
 
                             soundBuffer.append(audioBuffer, 0, read);
                             frames += read;
@@ -329,13 +323,6 @@ public class MainActivity extends AppCompatActivity
                 }
                 finally {
 
-                    if (os != null)
-                        try {
-                            os.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-
                     handler.post(new Runnable() { public void run() {
 
                         recordingActive = false;
@@ -343,7 +330,6 @@ public class MainActivity extends AppCompatActivity
 
                         }
                     });
-
                 }
 
             }

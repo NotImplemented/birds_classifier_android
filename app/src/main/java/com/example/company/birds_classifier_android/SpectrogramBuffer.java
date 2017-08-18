@@ -34,6 +34,8 @@ public class SpectrogramBuffer {
 
     public void appendSpectrogram(float[] spectrogram) {
 
+        spectrogram[0] = 0;
+
         System.arraycopy(spectrogram, 0, spectrogram_buffer[(int)(index % n)], 0, SampleSize / 2);
         ++index;
 
@@ -42,8 +44,16 @@ public class SpectrogramBuffer {
             // Prepare image and send to neural network.
             // [spectrogram_classify_index, spectrogram_classify_index + spectrogram_length]
 
-            for(int i = 0; i < SpectrogramLength; ++i)
-                System.arraycopy(spectrogram_buffer[(int)((classified_index + i) % n)], 0, image, i * (SampleSize) / 2, SampleSize / 2);
+            // TODO: optimize matrix transposition
+            for(int i = 0; i < SpectrogramLength; ++i) {
+
+                //System.arraycopy(spectrogram_buffer[(int) ((classified_index + i) % n)], 0, image, i * (SampleSize) / 2, SampleSize / 2);
+
+                for(int j = 0; j < SampleSize / 2; ++j) {
+
+                    image[j * SpectrogramLength + i] = spectrogram_buffer[(int) ((classified_index + i) % n)][j];
+                }
+            }
 
             float mn = Float.MAX_VALUE, mx = Float.MIN_VALUE;
             for(int i = 0; i < SpectrogramLength * (SampleSize / 2); ++i)
