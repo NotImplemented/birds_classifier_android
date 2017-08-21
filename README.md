@@ -1,6 +1,6 @@
 # Birds Classifier
 
-Birds classification based real-time sound recording.
+Birds classification based on real-time sound recording.
 Neural network trained in the ![mlsp-bird-classification](https://github.com/NotImplemented/mlsp-bird-classification) project.
 
 ![](https://github.com/NotImplemented/birds_classifier_android/blob/master/Birds-classifier.png)
