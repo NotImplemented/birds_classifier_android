@@ -2,6 +2,7 @@
 
 Birds classification based on real-time sound recording.
 Neural network trained in the ![mlsp-bird-classification](https://github.com/NotImplemented/mlsp-bird-classification) project.
+The latest debug build is ![here](https://github.com/NotImplemented/app/build/outputs/apk).
 
 ![](https://github.com/NotImplemented/birds_classifier_android/blob/master/Birds-classifier.png)
 
