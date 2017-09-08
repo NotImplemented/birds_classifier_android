@@ -186,7 +186,7 @@ public class TensorFlowImageClassifier implements Classifier {
             @Override
             public int compare(Recognition o1, Recognition o2) {
 
-                return (int) (o2.getDifference() - o1.getDifference());
+                return (int) Math.signum(o2.getDifference() - o1.getDifference());
             }
         });
 
