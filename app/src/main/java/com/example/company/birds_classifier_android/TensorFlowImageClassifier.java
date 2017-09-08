@@ -22,7 +22,7 @@ import java.util.Vector;
 public class TensorFlowImageClassifier implements Classifier {
 
     private static final String TAG = "TensorFlowImageClassifier";
-    private static final double THRESHOLD = 0.025;
+    private static final double THRESHOLD = 0.05;
 
     // Config values.
     private String inputName;
@@ -181,17 +181,14 @@ public class TensorFlowImageClassifier implements Classifier {
             list.get(i).setDifference(d);
         }
 
-        if (false) {
+        Collections.sort(list, new Comparator<Recognition>() {
 
-            Collections.sort(list, new Comparator<Recognition>() {
+            @Override
+            public int compare(Recognition o1, Recognition o2) {
 
-                @Override
-                public int compare(Recognition o1, Recognition o2) {
-
-                    return (int) (o2.getDifference() - o1.getDifference());
-                }
-            });
-        }
+                return (int) (o2.getDifference() - o1.getDifference());
+            }
+        });
 
         for (int i = 0; i < list.size(); ++i) {
 

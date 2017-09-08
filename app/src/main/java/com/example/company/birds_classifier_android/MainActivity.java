@@ -176,21 +176,6 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
-    byte[] ShortToByte(short[] buffer) {
-
-        int N = buffer.length;
-        ByteBuffer byteBuffer = ByteBuffer.allocate(N);
-
-        int i = 0;
-        while (i < N) {
-
-            byte b = (byte)(buffer[i] / 256);  /*convert to byte. */
-            byteBuffer.put(b);
-            i++;
-        }
-        return byteBuffer.array();
-    }
-
     private void startRecording() {
 
         textView.append(String.format("\n\n[%s] Recording has started.\n", getTime()));
