@@ -17,7 +17,7 @@ public class SpectrogramBuffer {
     float[][] spectrogram_buffer;
     long classified_index;
 
-    float[] image = new float[SpectrogramLength * (SampleSize / 2)];
+    float[] image = new float[SpectrogramLength * SampleSize / 2];
     Classifier imageClassifier;
 
     public SpectrogramBuffer(Classifier imageClassifier) {

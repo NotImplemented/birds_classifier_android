@@ -5,13 +5,10 @@ import android.graphics.RectF;
 import java.util.List;
 
 /**
- * Created by amitshekhar on 16/03/17.
- */
-
-/**
  * Generic interface for interacting with different recognition engines.
  */
 public interface Classifier {
+
     /**
      * An immutable result returned by a Classifier describing what was recognized.
      */
@@ -35,15 +32,28 @@ public interface Classifier {
         /**
          * Optional location within the source image for the location of the recognized object.
          */
-        private RectF location;
+        private Object location;
 
+        /**
+         * Difference with basic level.
+         */
         private float difference;
 
-        public Recognition(final String id, final String title, final Float confidence, final RectF location) {
+        public Recognition(final int id, final String title, final double confidence)
+        {
+            this(Integer.toString(id), title, confidence, null);
+        }
+
+        public Recognition(final String id, final String title, final double confidence)
+        {
+            this(id, title, confidence, null);
+        }
+
+        public Recognition(final String id, final String title, final double confidence, final Object location) {
 
             this.id = id;
             this.title = title;
-            this.confidence = confidence;
+            this.confidence = (float)confidence;
             this.location = location;
         }
 
@@ -69,11 +79,11 @@ public interface Classifier {
             difference = d;
         }
 
-        public RectF getLocation() {
-            return new RectF(location);
+        public Object getLocation() {
+            return location;
         }
 
-        public void setLocation(RectF location) {
+        public void setLocation(Object location) {
             this.location = location;
         }
 
@@ -102,10 +112,12 @@ public interface Classifier {
 
     List<Recognition> recognizeImage(float[] pixels);
 
-    void enableStatLogging(final boolean debug);
+    String getStatisticsString();
 
-    String getStatString();
+    void enableStatisticsLogging(final boolean debug);
 
     void close();
+
+
 }
 

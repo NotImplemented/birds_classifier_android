@@ -22,6 +22,7 @@ import java.util.Vector;
 public class TensorFlowImageClassifier implements Classifier {
 
     private static final String TAG = "TensorFlowImageClassifier";
+    private static final double THRESHOLD = 0.025;
 
     // Config values.
     private String inputName;
@@ -43,6 +44,37 @@ public class TensorFlowImageClassifier implements Classifier {
     private TensorFlowImageClassifier() {
     }
 
+    public static ArrayList<Recognition> CreateRecognitions() {
+
+        ArrayList<Recognition> recognitions = new ArrayList<>();
+
+        int id = 0;
+        recognitions.add(new Recognition(id++, "Brown Creeper", 0.0));
+        recognitions.add(new Recognition(id++, "Pacific Wren", 0.2849));
+        recognitions.add(new Recognition(id++, "Pacific-slope Flycatcher", 0.0667f));
+        recognitions.add(new Recognition(id++, "Red-breasted Nuthatch", 0.0793f));
+        recognitions.add(new Recognition(id++, "Dark-eyed Junco", 0.0));
+
+        recognitions.add(new Recognition(id++, "Olive-sided Flycatcher", 0.0));
+        recognitions.add(new Recognition(id++, "Hermit Thrush", 0.1092));
+        recognitions.add(new Recognition(id++, "Chestnut-backed Chickadee", 0.0553));
+        recognitions.add(new Recognition(id++, "Varied Thrush", 0.0));
+        recognitions.add(new Recognition(id++, "Hermit Warbler", 0.0));
+
+        recognitions.add(new Recognition(id++, "Swainsons's Thrush", 0.0107));
+        recognitions.add(new Recognition(id++, "Hammond's Flycatcher", 0.2906));
+        recognitions.add(new Recognition(id++, "Western Tanager", 0.1456));
+        recognitions.add(new Recognition(id++, "Black-headed Grosbeak", 0.0091));
+        recognitions.add(new Recognition(id++, "Golden Crowned Kinglet", 0.0));
+
+        recognitions.add(new Recognition(id++, "Warbling Vireo", 0.0499));
+        recognitions.add(new Recognition(id++, "MacGillivray's Warbler", 0.2488));
+        recognitions.add(new Recognition(id++, "Stellar's Jay", 0.0640));
+        recognitions.add(new Recognition(id++, "Common Nighthawk", 0.0));
+
+        return recognitions;
+    }
+
     /**
      * Initializes a native TensorFlow session for classifying images.
      *
@@ -60,9 +92,9 @@ public class TensorFlowImageClassifier implements Classifier {
             throws IOException {
 
         activity = mainActivity;
-        TensorFlowImageClassifier c = new TensorFlowImageClassifier();
-        c.inputName = inputName;
-        c.outputName = outputName;
+        TensorFlowImageClassifier classifier = new TensorFlowImageClassifier();
+        classifier.inputName = inputName;
+        classifier.outputName = outputName;
 
         // Read the label names into memory.
         String actualFilename = labelFilename.split("file:///android_asset/")[1];
@@ -71,19 +103,19 @@ public class TensorFlowImageClassifier implements Classifier {
         br = new BufferedReader(new InputStreamReader(assetManager.open(actualFilename)));
         String line;
         while ((line = br.readLine()) != null) {
-            c.labels.add(line);
+            classifier.labels.add(line);
         }
         br.close();
 
-        c.inferenceInterface = new TensorFlowInferenceInterface();
-        if (c.inferenceInterface.initializeTensorFlow(assetManager, modelFilename) != 0) {
+        classifier.inferenceInterface = new TensorFlowInferenceInterface();
+        if (classifier.inferenceInterface.initializeTensorFlow(assetManager, modelFilename) != 0) {
             throw new RuntimeException("TensorFlow initialization failed");
         }
-        log("Read " + c.labels.size() + " labels.\n");
+        log("Read " + classifier.labels.size() + " labels.\n");
 
         // The shape of the output is [N, NUM_CLASSES], where N is the batch size.
-        String output_shape = c.inferenceInterface.graph().operation(outputName).output(0).shape().toString();
-        c.outputSize = (int)c.inferenceInterface.graph().operation(outputName).output(0).shape().size(3);
+        String output_shape = classifier.inferenceInterface.graph().operation(outputName).output(0).shape().toString();
+        classifier.outputSize = (int)classifier.inferenceInterface.graph().operation(outputName).output(0).shape().size(3);
         log("Output layer: " + output_shape + ".\n");
 
         //String input = c.inferenceInterface.graph().operation(inputName).type();
@@ -91,18 +123,19 @@ public class TensorFlowImageClassifier implements Classifier {
 
         log("Model file: " + modelFilename + ".\n");
 
+        classifier.recognitions = CreateRecognitions();
 
         // Ideally, inputSize could have been retrieved from the shape of the input operation.  Alas,
         // the placeholder node for input in the graphdef typically used does not specify a shape, so it
         // must be passed in as a parameter.
-        c.inputWidth = inputWidth;
-        c.inputHeight = inputHeight;
+        classifier.inputWidth = inputWidth;
+        classifier.inputHeight = inputHeight;
 
         // Pre-allocate buffers.
-        c.outputNames = new String[]{outputName};
-        c.outputs = new float[c.outputSize];
+        classifier.outputNames = new String[]{outputName};
+        classifier.outputs = new float[classifier.outputSize];
 
-        return c;
+        return classifier;
     }
 
     @Override
@@ -141,42 +174,34 @@ public class TensorFlowImageClassifier implements Classifier {
 
         Trace.endSection(); // "recognizeImage"
 
-        if (recognitions == null) {
 
-            log(String.format("Displaying basic levels.\n"));
-            for (Recognition recognition : list) {
+        for (int i = 0; i < list.size(); ++i) {
 
-                log(String.format("Bird \"%s\": %.4f\n", recognition.getTitle(), recognition.getConfidence()));
-            }
-
-            recognitions = (ArrayList<Recognition>) list.clone();
+            float d = list.get(i).getConfidence() - recognitions.get(i).getConfidence();
+            list.get(i).setDifference(d);
         }
-        else {
 
-            for (int i = 0; i < list.size(); ++i) {
-                float d = list.get(i).getConfidence() - recognitions.get(i).getConfidence();
-                list.get(i).setDifference(d);
-            }
+        if (false) {
 
             Collections.sort(list, new Comparator<Recognition>() {
 
                 @Override
                 public int compare(Recognition o1, Recognition o2) {
 
-                    return (int)Math.signum(o2.getDifference() - o1.getDifference());
+                    return (int) (o2.getDifference() - o1.getDifference());
                 }
             });
-
-            for (int i = 0; i < list.size(); ++i) {
-                log(String.format("Bird \"%s\": diff = %.4f\n", list.get(i).getTitle(), list.get(i).getDifference()));
-
-                if (list.get(i).getDifference() >= 0.025) {
-
-                    activity.showNotification(String.format("%s: %.4f\n", list.get(i).getTitle(), list.get(i).getDifference()));
-                }
-            }
         }
 
+        for (int i = 0; i < list.size(); ++i) {
+
+            log(String.format("Bird \"%s\": diff = %.4f\n", list.get(i).getTitle(), list.get(i).getDifference()));
+
+            if (list.get(i).getDifference() >= THRESHOLD) {
+
+                activity.showNotification(String.format("%s: %.4f\n", list.get(i).getTitle(), list.get(i).getDifference()));
+            }
+        }
 
         activity.displayRecognitionData(pixels, inputHeight, inputWidth);
 
@@ -184,13 +209,13 @@ public class TensorFlowImageClassifier implements Classifier {
     }
 
     @Override
-    public void enableStatLogging(boolean debug) {
+    public void enableStatisticsLogging(boolean debug) {
 
         inferenceInterface.enableStatLogging(debug);
     }
 
     @Override
-    public String getStatString() {
+    public String getStatisticsString() {
 
         return inferenceInterface.getStatString();
     }
