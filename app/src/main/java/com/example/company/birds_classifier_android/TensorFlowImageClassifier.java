@@ -22,7 +22,7 @@ import java.util.Vector;
 public class TensorFlowImageClassifier implements Classifier {
 
     private static final String TAG = "TensorFlowImageClassifier";
-    private static final double THRESHOLD = 0.05;
+    private static final double THRESHOLD = 0.03;
 
     // Config values.
     private String inputName;
@@ -51,8 +51,8 @@ public class TensorFlowImageClassifier implements Classifier {
         int id = 0;
         recognitions.add(new Recognition(id++, "Brown Creeper", 0.0));
         recognitions.add(new Recognition(id++, "Pacific Wren", 0.2849));
-        recognitions.add(new Recognition(id++, "Pacific-slope Flycatcher", 0.0667f));
-        recognitions.add(new Recognition(id++, "Red-breasted Nuthatch", 0.0793f));
+        recognitions.add(new Recognition(id++, "Pacific-slope Flycatcher", 0.0667));
+        recognitions.add(new Recognition(id++, "Red-breasted Nuthatch", 0.0793));
         recognitions.add(new Recognition(id++, "Dark-eyed Junco", 0.0));
 
         recognitions.add(new Recognition(id++, "Olive-sided Flycatcher", 0.0));
